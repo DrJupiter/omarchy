@@ -1,6 +1,165 @@
 # Ensure we have gum available
-if ! command -v gum &>/dev/null; then
-  sudo pacman -S --needed --noconfirm gum
+ensure_gum_available() {
+  if command -v gum &>/dev/null; then
+    return 0
+  fi
+
+  if is_arch_based; then
+    sudo pacman -S --needed --noconfirm gum || return 1
+    return 0
+  fi
+
+  local gum_version="0.14.3"
+  local arch="$(uname -m)"
+  local gum_arch=""
+
+  case "$arch" in
+    x86_64) gum_arch="x86_64" ;;
+    aarch64|arm64) gum_arch="arm64" ;;
+    *)
+      echo "Unsupported architecture ($arch) for automatic gum installation" >&2
+      return 1
+      ;;
+  esac
+
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+  local tarball="gum_${gum_version}_Linux_${gum_arch}.tar.gz"
+  local url="https://github.com/charmbracelet/gum/releases/download/v${gum_version}/${tarball}"
+
+  if command -v curl &>/dev/null; then
+    curl -fsSL "$url" -o "$tmp_dir/$tarball" || { rm -rf "$tmp_dir"; return 1; }
+  elif command -v wget &>/dev/null; then
+    wget -q "$url" -O "$tmp_dir/$tarball" || { rm -rf "$tmp_dir"; return 1; }
+  else
+    echo "Neither curl nor wget is available to download gum" >&2
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  if tar -xzf "$tmp_dir/$tarball" -C "$tmp_dir"; then
+    sudo install -m 755 "$tmp_dir/gum" /usr/local/bin/gum || { rm -rf "$tmp_dir"; return 1; }
+  else
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  rm -rf "$tmp_dir"
+}
+
+ensure_gum_available || true
+
+if command -v gum &>/dev/null; then
+  export OMARCHY_HAS_GUM=1
+else
+  export OMARCHY_HAS_GUM=0
+
+  gum() {
+    local subcommand="$1"
+    shift || true
+
+    case "$subcommand" in
+      style)
+        local text=""
+        while [[ $# -gt 0 ]]; do
+          case "$1" in
+            --*)
+              shift
+              if [[ $# -gt 0 && $1 != --* ]]; then
+                shift
+              fi
+              ;;
+            -*)
+              shift
+              ;;
+            *)
+              if [[ -z "$text" ]]; then
+                text="$1"
+              else
+                text+=" $1"
+              fi
+              shift
+              ;;
+          esac
+        done
+
+        printf '%b\n' "$text"
+        ;;
+      log)
+        local level="INFO"
+        while [[ $# -gt 0 ]]; do
+          case "$1" in
+            --level)
+              level="${2:-INFO}"
+              shift 2
+              ;;
+            --)
+              shift
+              break
+              ;;
+            *)
+              break
+              ;;
+          esac
+        done
+        # shellcheck disable=SC2145
+        echo "[$level] $@"
+        ;;
+      confirm)
+        local prompt="Proceed?"
+        local default_choice=""
+        while [[ $# -gt 0 ]]; do
+          case "$1" in
+            --affirmative)
+              shift 2
+              ;;
+            --negative)
+              shift 3
+              ;;
+            --default)
+              default_choice="y"
+              shift
+              ;;
+            --*)
+              shift
+              ;;
+            *)
+              prompt="$1"
+              shift
+              ;;
+          esac
+        done
+
+        local response
+        if [[ "${default_choice:-}" == "y" ]]; then
+          read -rp "$prompt [Y/n] " response
+          response=${response:-Y}
+        else
+          read -rp "$prompt [y/N] " response
+        fi
+
+        [[ "$response" =~ ^[Yy]$ ]]
+        ;;
+      spin)
+        while [[ $# -gt 0 ]]; do
+          case "$1" in
+            --)
+              shift
+              break
+              ;;
+            *)
+              shift
+              ;;
+          esac
+        done
+        "$@"
+        ;;
+      *)
+        echo "gum $subcommand not available without gum binary" >&2
+        return 1
+        ;;
+    esac
+  }
 fi
 
 # Get terminal size from /dev/tty (works in all scenarios: direct, sourced, or piped)

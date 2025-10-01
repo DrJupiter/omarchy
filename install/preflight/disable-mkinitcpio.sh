@@ -1,6 +1,11 @@
 # Temporarily disable mkinitcpio hooks to prevent multiple regenerations during package installation
 # This speeds up installation significantly
 
+if ! is_arch_based; then
+  echo "Skipping mkinitcpio hook adjustments on ${OMARCHY_OS_ID:-unknown}"
+  exit 0
+fi
+
 echo "Temporarily disabling mkinitcpio hooks during installation..."
 
 # Move the specific mkinitcpio pacman hooks out of the way if they exist

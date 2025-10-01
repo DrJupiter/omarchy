@@ -1,5 +1,10 @@
 # Hyprland launched via UWSM and login directly as user, rely on disk encryption + hyprlock for security
 
+if ! is_arch_based; then
+  echo "Skipping Plymouth customization on ${OMARCHY_OS_ID:-unknown}"
+  exit 0
+fi
+
 # ==============================================================================
 # PLYMOUTH SETUP
 # ==============================================================================

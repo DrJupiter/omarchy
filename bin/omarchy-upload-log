@@ -1,5 +1,9 @@
 #!/bin/bash
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
+
 # Upload logs to 0x0.st
 
 LOG_TYPE="${1:-install}"
@@ -12,7 +16,6 @@ if command -v fastfetch >/dev/null 2>&1; then
     echo "========================================="
     echo "SYSTEM INFORMATION"
     echo "========================================="
-    # Use fastfetch with no logo to get clean output
     fastfetch --logo none --pipe 2>/dev/null || echo "Failed to get system info"
     echo ""
     echo "========================================="
@@ -21,7 +24,6 @@ if command -v fastfetch >/dev/null 2>&1; then
     echo ""
   } >"$SYSTEM_INFO"
 else
-  # Fallback to basic info if fastfetch isn't available
   {
     echo "========================================="
     echo "SYSTEM INFORMATION"
@@ -42,7 +44,6 @@ install)
   ARCHINSTALL_LOG="/var/log/archinstall/install.log"
   OMARCHY_LOG="/var/log/omarchy-install.log"
 
-  # Combine system info with logs
   cat "$SYSTEM_INFO" >"$TEMP_LOG"
   cat $ARCHINSTALL_LOG $OMARCHY_LOG >>"$TEMP_LOG" 2>/dev/null
 
@@ -55,7 +56,6 @@ install)
   ;;
 
 this-boot)
-  # Combine system info with boot logs
   cat "$SYSTEM_INFO" >"$TEMP_LOG"
   journalctl -b 0 >>"$TEMP_LOG" 2>/dev/null
 
@@ -68,7 +68,6 @@ this-boot)
   ;;
 
 last-boot)
-  # Combine system info with previous boot logs
   cat "$SYSTEM_INFO" >"$TEMP_LOG"
   journalctl -b -1 >>"$TEMP_LOG" 2>/dev/null
 
@@ -81,14 +80,27 @@ last-boot)
   ;;
 
 installed)
-  # System info plus all installed packages
   cat "$SYSTEM_INFO" >"$TEMP_LOG"
   {
     echo ""
     echo "========================================="
-    echo "INSTALLED PACKAGES (pacman -Q)"
-    echo "========================================="
-    pacman -Q 2>/dev/null || echo "Failed to get package list"
+    case "$(pkg_manager 2>/dev/null)" in
+    pacman)
+      echo "INSTALLED PACKAGES (pacman -Q)"
+      echo "========================================="
+      pacman -Q 2>/dev/null || echo "Failed to get package list"
+      ;;
+    apt)
+      echo "INSTALLED PACKAGES (dpkg -l)"
+      echo "========================================="
+      dpkg -l 2>/dev/null || echo "Failed to get package list"
+      ;;
+    *)
+      echo "INSTALLED PACKAGES"
+      echo "========================================="
+      echo "Package listing is not supported on this platform"
+      ;;
+    esac
   } >>"$TEMP_LOG"
 
   if [ ! -s "$TEMP_LOG" ]; then
@@ -100,7 +112,7 @@ installed)
   ;;
 
 *)
-  echo "Usage: $0 [install|this-boot|last-boot|system-info]"
+  echo "Usage: $0 [install|this-boot|last-boot|system-info|installed]"
   echo "  install      - Upload installation logs (default)"
   echo "  this-boot    - Upload logs from current boot"
   echo "  last-boot    - Upload logs from previous boot"

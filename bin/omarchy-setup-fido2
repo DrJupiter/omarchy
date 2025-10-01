@@ -2,6 +2,10 @@
 
 set -e
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
@@ -80,7 +84,11 @@ if [[ "--remove" == "$1" ]]; then
 
   # Uninstall packages
   print_info "Removing FIDO2 packages..."
-  sudo pacman -Rns --noconfirm libfido2 pam-u2f
+  remove_pkgs=(libfido2 pam-u2f)
+  if pkg_manager_is apt; then
+    remove_pkgs=(libfido2-1 libpam-u2f)
+  fi
+  pkg_remove "${remove_pkgs[@]}"
 
   print_success "FIDO2 authentication has been completely removed."
 else
@@ -88,7 +96,11 @@ else
 
   # Install required packages
   print_info "Installing required packages..."
-  sudo pacman -S --noconfirm --needed libfido2 pam-u2f
+  install_pkgs=(libfido2 pam-u2f)
+  if pkg_manager_is apt; then
+    install_pkgs=(libfido2-1 libpam-u2f)
+  fi
+  pkg_install "${install_pkgs[@]}"
 
   if ! check_fido2_hardware; then
     exit 1

@@ -1,11 +1,21 @@
 #!/bin/bash
 
-if [ "$(uname -r | sed 's/-arch/\.arch/')" != "$(pacman -Q linux | awk '{print $2}')" ]; then
-  gum confirm "Linux kernel has been updated. Reboot?" && omarchy-state clear re*-required && sudo reboot now
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
 
-elif [ -f "$HOME/.local/state/omarchy/reboot-required" ]; then
+if pkg_manager_is pacman; then
+  if [ "$(uname -r | sed 's/-arch/\.arch/')" != "$(pacman -Q linux | awk '{print $2}')" ]; then
+    gum confirm "Linux kernel has been updated. Reboot?" && omarchy-state clear re*-required && sudo reboot now
+  fi
+elif pkg_manager_is apt; then
+  if [[ -f /var/run/reboot-required ]]; then
+    gum confirm "Updates require reboot. Ready?" && omarchy-state clear re*-required && sudo reboot now
+  fi
+fi
+
+if [ -f "$HOME/.local/state/omarchy/reboot-required" ]; then
   gum confirm "Updates require reboot. Ready?" && omarchy-state clear re*-required && sudo reboot now
-
 elif [ -f "$HOME/.local/state/omarchy/relaunch-required" ]; then
   gum confirm "Updates require Hyprland relaunch. Ready?" && omarchy-state clear re*-required && uwsm stop
 fi

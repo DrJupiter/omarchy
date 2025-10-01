@@ -1,3 +1,8 @@
+if ! is_arch_based; then
+  echo "Skipping pacman post-install configuration on ${OMARCHY_OS_ID:-unknown}"
+  exit 0
+fi
+
 # Configure pacman
 sudo cp -f ~/.local/share/omarchy/default/pacman/pacman.conf /etc/pacman.conf
 sudo cp -f ~/.local/share/omarchy/default/pacman/mirrorlist /etc/pacman.d/mirrorlist

@@ -1,31 +1,49 @@
 #!/bin/bash
 
-# Used in package emergencies if a bad package has been pushed and we can't revoke.
-# Requires manually installing the good package using sudo pacman -U <url>
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
+
 ignored_packages=$(omarchy-pkg-ignored)
 
-echo -e "\e[32m\nUpdate system packages\e[0m"
-[[ -n $ignored_packages ]] && echo "sudo pacman -Syu --noconfirm --ignore \"$ignored_packages\""
-sudo pacman -Syu --noconfirm --ignore "$ignored_packages"
+case "$(pkg_manager 2>/dev/null)" in
+pacman)
+  echo -e "\e[32m\nUpdate system packages\e[0m"
+  [[ -n $ignored_packages ]] && echo "sudo pacman -Syu --noconfirm --ignore \"$ignored_packages\""
+  sudo pacman -Syu --noconfirm --ignore "$ignored_packages"
 
-# Update AUR packages if any are installed
-if pacman -Qem >/dev/null; then
-  if omarchy-pkg-aur-accessible; then
-    echo -e "\e[32m\nUpdate AUR packages\e[0m"
-    [[ -n $ignored_packages ]] && echo "yay -Sua --noconfirm  --ignore \"$ignored_packages\""
-    yay -Sua --noconfirm --ignore "$ignored_packages"
-    echo
-  else
-    echo -e "\e[31m\nAUR is unavailable (so skipping updates)\e[0m"
+  if pacman -Qem >/dev/null; then
+    if omarchy-pkg-aur-accessible; then
+      echo -e "\e[32m\nUpdate AUR packages\e[0m"
+      [[ -n $ignored_packages ]] && echo "yay -Sua --noconfirm  --ignore \"$ignored_packages\""
+      yay -Sua --noconfirm --ignore "$ignored_packages"
+      echo
+    else
+      echo -e "\e[31m\nAUR is unavailable (so skipping updates)\e[0m"
+      echo
+    fi
+  fi
+
+  orphans=$(pacman -Qtdq)
+  if [[ -n $orphans ]]; then
+    echo -e "\e[32m\nRemove orphan system packages\e[0m"
+    for pkg in $orphans; do
+      sudo pacman -Rs --noconfirm "$pkg" || true
+    done
     echo
   fi
-fi
-
-orphans=$(pacman -Qtdq)
-if [[ -n $orphans ]]; then
-  echo -e "\e[32m\nRemove orphan system packages\e[0m"
-  for pkg in $orphans; do
-    sudo pacman -Rs --noconfirm "$pkg" || true
-  done
-  echo
-fi
+  ;;
+apt)
+  echo -e "\e[32m\nUpdate system packages\e[0m"
+  sudo apt-get update
+  if [[ -n $ignored_packages ]]; then
+    echo -e "\e[33mIgnoring packages is not supported on apt-based systems.\e[0m"
+  fi
+  sudo apt-get upgrade -y
+  sudo apt-get autoremove -y
+  ;;
+*)
+  echo "System package updates are not supported on this platform." >&2
+  exit 1
+  ;;
+esac

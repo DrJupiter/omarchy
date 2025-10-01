@@ -1,7 +1,15 @@
 #!/bin/bash
 
-for pkg in "$@"; do
-  if pacman -Q "$pkg" &>/dev/null; then
-    sudo pacman -Rns --noconfirm "$pkg"
-  fi
-done
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
+
+pkg="$1"
+if [[ -z $pkg ]]; then
+  echo "Usage: omarchy-pkg-drop <package>" >&2
+  exit 1
+fi
+
+if pkg_is_installed "$pkg"; then
+  pkg_remove "$pkg"
+fi

@@ -1,9 +1,15 @@
 #!/bin/bash
 
-for pkg in "$@"; do
-  if ! pacman -Q "$pkg" &>/dev/null; then
-    sudo pacman -S --noconfirm "$pkg" || exit 1
-  fi
-done
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
 
-exit 0
+pkg="$1"
+if [[ -z $pkg ]]; then
+  echo "Usage: omarchy-pkg-add <package>" >&2
+  exit 1
+fi
+
+if ! pkg_is_installed "$pkg"; then
+  pkg_install "$pkg" || exit 1
+fi

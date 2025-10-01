@@ -1,3 +1,8 @@
+if ! is_arch_based; then
+  echo "Skipping mkinitcpio hook re-enable on ${OMARCHY_OS_ID:-unknown}"
+  exit 0
+fi
+
 echo "Re-enabling mkinitcpio hooks..."
 
 # Restore the specific mkinitcpio pacman hooks
