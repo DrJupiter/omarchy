@@ -1,5 +1,19 @@
 #!/bin/bash
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
+
 echo "Now pick dependencies matching your graphics card"
-sudo pacman -Syu --noconfirm steam
+
+if pkg_manager_is pacman; then
+  sudo pacman -Syu --noconfirm steam
+elif pkg_manager_is apt; then
+  sudo apt-get update
+  sudo apt-get install -y steam-installer steam-devices || sudo apt-get install -y steam
+else
+  echo "Steam installation is not supported on this platform." >&2
+  exit 1
+fi
+
 setsid gtk-launch steam >/dev/null 2>&1 &

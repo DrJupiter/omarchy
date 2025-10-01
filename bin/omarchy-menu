@@ -2,6 +2,12 @@
 
 export PATH="$HOME/.local/share/omarchy/bin:$PATH"
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
+
+PKG_MANAGER="$(pkg_manager 2>/dev/null)"
+
 # Set to true when going directly to a submenu, so we can exit directly
 BACK_TO_EXIT=false
 
@@ -50,15 +56,45 @@ open_in_editor() {
 }
 
 install() {
-  present_terminal "echo 'Installing $1...'; sudo pacman -S --noconfirm $2"
+  case "$PKG_MANAGER" in
+  pacman)
+    present_terminal "echo 'Installing $1...'; sudo pacman -S --noconfirm $2"
+    ;;
+  apt)
+    present_terminal "echo 'Installing $1...'; sudo apt-get install -y $2"
+    ;;
+  *)
+    present_terminal "echo 'Package installs are not supported on this platform.'; sleep 3"
+    ;;
+  esac
 }
 
 install_and_launch() {
-  present_terminal "echo 'Installing $1...'; sudo pacman -S --noconfirm $2 && setsid gtk-launch $3"
+  case "$PKG_MANAGER" in
+  pacman)
+    present_terminal "echo 'Installing $1...'; sudo pacman -S --noconfirm $2 && setsid gtk-launch $3"
+    ;;
+  apt)
+    present_terminal "echo 'Installing $1...'; sudo apt-get install -y $2 && setsid gtk-launch $3"
+    ;;
+  *)
+    present_terminal "echo 'Package installs are not supported on this platform.'; sleep 3"
+    ;;
+  esac
 }
 
 install_font() {
-  present_terminal "echo 'Installing $1...'; sudo pacman -S --noconfirm --needed $2 && sleep 2 && omarchy-font-set '$3'"
+  case "$PKG_MANAGER" in
+  pacman)
+    present_terminal "echo 'Installing $1...'; sudo pacman -S --noconfirm --needed $2 && sleep 2 && omarchy-font-set '$3'"
+    ;;
+  apt)
+    present_terminal "echo 'Installing $1...'; sudo apt-get install -y $2 && sleep 2 && omarchy-font-set '$3'"
+    ;;
+  *)
+    present_terminal "echo 'Font installs are not supported on this platform.'; sleep 3"
+    ;;
+  esac
 }
 
 install_terminal() {
@@ -66,11 +102,19 @@ install_terminal() {
 }
 
 aur_install() {
-  present_terminal "echo 'Installing $1 from AUR...'; yay -S --noconfirm $2"
+  if pkg_supports_aur; then
+    present_terminal "echo 'Installing $1 from AUR...'; yay -S --noconfirm $2"
+  else
+    present_terminal "echo 'AUR packages are only available on Arch installs.'; sleep 3"
+  fi
 }
 
 aur_install_and_launch() {
-  present_terminal "echo 'Installing $1 from AUR...'; yay -S --noconfirm $2 && setsid gtk-launch $3"
+  if pkg_supports_aur; then
+    present_terminal "echo 'Installing $1 from AUR...'; yay -S --noconfirm $2 && setsid gtk-launch $3"
+  else
+    present_terminal "echo 'AUR packages are only available on Arch installs.'; sleep 3"
+  fi
 }
 
 show_learn_menu() {

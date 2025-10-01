@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Prefer the distro-provided Blueberry binary when available.
+if [ -x /usr/bin/blueberry ]; then
+  exec /usr/bin/blueberry "$@"
+fi
+
+# Fallback to Blueman on distros that do not ship Blueberry.
+if command -v blueman-manager &>/dev/null; then
+  exec blueman-manager "$@"
+fi
+
+echo "No Blueberry or Blueman manager available" >&2
+exit 1

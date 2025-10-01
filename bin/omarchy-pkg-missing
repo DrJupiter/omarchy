@@ -1,7 +1,11 @@
 #!/bin/bash
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
+
 for pkg in "$@"; do
-  if ! pacman -Q "$pkg" &>/dev/null; then
+  if ! pkg_is_installed "$pkg"; then
     exit 0
   fi
 done

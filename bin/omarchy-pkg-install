@@ -1,8 +1,17 @@
 #!/bin/bash
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=bin/lib/pkg.sh
+source "$script_dir/lib/pkg.sh"
+
+preview_command=$(pkg_available_preview_command) || {
+  echo "Interactive package install is not supported on this system." >&2
+  exit 1
+}
+
 fzf_args=(
   --multi
-  --preview 'pacman -Sii {1}'
+  --preview "$preview_command"
   --preview-label='alt-p: toggle description, alt-j/k: scroll, tab: multi-select, F11: maximize'
   --preview-label-pos='bottom'
   --preview-window 'down:65%:wrap'
@@ -12,10 +21,10 @@ fzf_args=(
   --color 'pointer:green,marker:green'
 )
 
-pkg_names=$(pacman -Slq | fzf "${fzf_args[@]}")
+pkg_names=$(pkg_available_list | fzf "${fzf_args[@]}")
 
 if [[ -n "$pkg_names" ]]; then
-  # Convert newline-separated selections to space-separated for yay
-  echo "$pkg_names" | tr '\n' ' ' | xargs sudo pacman -S --noconfirm
+  mapfile -t packages < <(echo "$pkg_names")
+  pkg_install "${packages[@]}"
   omarchy-show-done
 fi
